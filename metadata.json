@@ -1,0 +1,8 @@
+{
+  "name": "Charade-Crea",
+  "description": "Site vitrine professionnel et atelier de création de sacs personnalisés Charade-Crea",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
