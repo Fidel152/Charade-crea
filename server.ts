@@ -3,16 +3,12 @@ dotenv.config();
 
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import { eq, desc } from 'drizzle-orm';
 import { db, initSqliteTables } from './src/db/index.ts';
 import { adminUsers, products, orders, messages, siteSettings } from './src/db/schema.ts';
 import { requireAdminAuth, generateToken, AuthRequest } from './src/server/auth.ts';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
