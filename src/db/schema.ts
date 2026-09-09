@@ -1,26 +1,26 @@
-import { integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
 
-export const adminUsers = pgTable('admin', {
-  id: serial('id').primaryKey(),
+export const adminUsers = sqliteTable('admin', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('admin'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const products = pgTable('products', {
-  id: serial('id').primaryKey(),
+export const products = sqliteTable('products', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   description: text('description').notNull(),
   material: text('material').notNull(),
   color: text('color').notNull(),
   price: text('price').notNull().default('Sur devis'),
   imageUrl: text('image_url').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const orders = pgTable('orders', {
-  id: serial('id').primaryKey(),
+export const orders = sqliteTable('orders', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   customerName: text('customer_name').notNull(),
   phone: text('phone').notNull(),
   email: text('email').notNull(),
@@ -28,20 +28,20 @@ export const orders = pgTable('orders', {
   description: text('description').notNull(),
   referenceImage: text('reference_image'),
   status: text('status').notNull().default('Nouvelle'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
+export const messages = sqliteTable('messages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   email: text('email').notNull(),
   phone: text('phone').notNull(),
   message: text('message').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
-export const siteSettings = pgTable('site_settings', {
-  id: serial('id').primaryKey(),
+export const siteSettings = sqliteTable('site_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   phone: text('phone').notNull().default('+33 6 12 34 56 78'),
   whatsapp: text('whatsapp').notNull().default('33612345678'),
   email: text('email').notNull().default('contact@charade-crea.fr'),

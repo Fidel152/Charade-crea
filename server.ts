@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import { eq, desc } from 'drizzle-orm';
-import { db } from './src/db/index.ts';
+import { db, initSqliteTables } from './src/db/index.ts';
 import { adminUsers, products, orders, messages, siteSettings } from './src/db/schema.ts';
 import { requireAdminAuth, generateToken, AuthRequest } from './src/server/auth.ts';
 
@@ -23,6 +23,8 @@ async function startServer() {
   // Helper function to seed initial admin & products
   async function seedInitialData() {
     try {
+      await initSqliteTables();
+
       // Seed Admin
       const existingAdmins = await db.select().from(adminUsers);
       if (existingAdmins.length === 0) {
