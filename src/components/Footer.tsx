@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivePage, SiteSettings } from '../types.ts';
-import { ShoppingBag, Heart, Instagram, Facebook, Mail, Phone, MapPin, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, Heart, Instagram, Facebook, Mail, Phone, MapPin, ShieldCheck, Lock } from 'lucide-react';
 
 interface FooterProps {
   setActivePage: (page: ActivePage) => void;
@@ -163,6 +163,14 @@ export const Footer: React.FC<FooterProps> = ({ setActivePage, siteSettings }) =
             <span>© {new Date().getFullYear()} Charade-Crea. Fait avec</span>
             <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400 inline mx-0.5" />
             <span>Tous droits réservés.</span>
+            <button
+              onClick={() => handleNav('admin')}
+              className="ml-2 opacity-30 hover:opacity-100 transition-opacity p-1 text-[#D4A373]"
+              title="Accès Administration"
+              aria-label="Accès Administration"
+            >
+              <Lock className="w-3 h-3 inline" />
+            </button>
           </p>
           <div className="flex items-center space-x-6">
             <span>Qualité Fait Main</span>

@@ -1,3 +1,6 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -95,13 +98,24 @@ async function startServer() {
         });
         console.log('✅ Paramètres initiaux du site créés.');
       }
-    } catch (error) {
-      console.error('Erreur lors de la vérification/initialisation des données :', error);
+    } catch (error: any) {
+      if (error?.cause?.code === 'ECONNREFUSED' || error?.code === 'ECONNREFUSED') {
+        console.warn('\n⚠️ [BASE DE DONNÉES NON CONNECTÉE] ⚠️');
+        console.warn('Le serveur PostgreSQL n\'est pas accessible sur votre machine locale (ECONNREFUSED).');
+        console.warn('Pour utiliser la base de données dans VS Code :');
+        console.warn('1. Installez et démarrez PostgreSQL (ou un conteneur Docker PostgreSQL).');
+        console.warn('2. Créez un fichier .env à la racine avec vos identifiants (voir .env.example) :');
+        console.warn('   SQL_HOST=localhost');
+        console.warn('   SQL_PORT=5432');
+        console.warn('   SQL_USER=postgres');
+        console.warn('   SQL_PASSWORD=votre_mot_de_passe');
+        console.warn('   SQL_DB_NAME=charade_db');
+        console.warn('3. Exécutez "npx drizzle-kit push" pour créer les tables automatiquement.\n');
+      } else {
+        console.error('Erreur lors de la vérification/initialisation des données :', error);
+      }
     }
   }
-
-  // Seed data on server boot
-  await seedInitialData();
 
   // API ROUTES
 
@@ -487,6 +501,9 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Serveur Charade-Crea démarré sur http://localhost:${PORT}`);
+    seedInitialData().catch((err) => {
+      console.warn('Initialisation des données exécutée avec avertissement :', err?.message || err);
+    });
   });
 }
 
