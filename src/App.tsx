@@ -65,18 +65,44 @@ const INITIAL_PRODUCTS: Product[] = [
 
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>('home');
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const cached = localStorage.getItem('charade_products_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return INITIAL_PRODUCTS;
+  });
   const [prefilledProduct, setPrefilledProduct] = useState<Product | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
-    phone: '+33 6 12 34 56 78',
-    whatsapp: '33612345678',
-    email: 'contact@charade-crea.fr',
-    address: 'Atelier Artisanal Charade-Crea, Diego-Suarez, Madagascar',
-    instagramUrl: 'https://instagram.com',
-    facebookUrl: 'https://facebook.com',
-    workingHours: 'Du lundi au samedi (9h - 18h30)',
-    slogan: 'Des sacs uniques faits main selon vos envies',
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    try {
+      const cached = localStorage.getItem('charade_settings_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return {
+      phone: '+33 6 12 34 56 78',
+      whatsapp: '33612345678',
+      email: 'contact@charade-crea.fr',
+      address: 'Atelier Artisanal Charade-Crea, Diego-Suarez, Madagascar',
+      instagramUrl: 'https://instagram.com',
+      facebookUrl: 'https://facebook.com',
+      workingHours: 'Du lundi au samedi (9h - 18h30)',
+      slogan: 'Des sacs uniques faits main selon vos envies',
+    };
   });
 
   // Check URL path on load (support direct navigate to /charade-admin)
@@ -101,7 +127,14 @@ export default function App() {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
-        setProducts(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+          try {
+            localStorage.setItem('charade_products_cache', JSON.stringify(data));
+          } catch (e) {
+            console.warn('Cache local plein ou inaccessible');
+          }
+        }
       }
     } catch (err) {
       console.error('Erreur lors du chargement des créations :', err);
@@ -114,7 +147,14 @@ export default function App() {
       const res = await fetch('/api/settings');
       if (res.ok) {
         const data = await res.json();
-        setSiteSettings(data);
+        if (data && typeof data === 'object') {
+          setSiteSettings(data);
+          try {
+            localStorage.setItem('charade_settings_cache', JSON.stringify(data));
+          } catch (e) {
+            console.warn('Cache local plein ou inaccessible');
+          }
+        }
       }
     } catch (err) {
       console.error('Erreur lors du chargement des paramètres du site :', err);

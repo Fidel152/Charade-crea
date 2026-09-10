@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, Order, MessageItem, ActivePage, SiteSettings } from '../types.ts';
+import { compressImage } from '../utils/imageCompressor.ts';
 import {
   Lock, KeyRound, LogOut, Plus, Trash2, Edit, RefreshCw, ShoppingBag,
   Inbox, FileText, CheckCircle, Clock, Sparkles, Image as ImageIcon,
@@ -38,6 +39,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Modals
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -156,6 +159,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!token) return;
 
+    setIsSavingProduct(true);
     try {
       const method = editingProduct ? 'PUT' : 'POST';
       const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
@@ -170,18 +174,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(err.error || 'Erreur lors de la sauvegarde du produit.');
         return;
+      }
+
+      const savedProduct: Product = await res.json();
+
+      // Immediately synchronize local storage cache so refresh never reverts
+      try {
+        const cached = localStorage.getItem('charade_products_cache');
+        let list: Product[] = cached ? JSON.parse(cached) : [];
+        if (editingProduct) {
+          list = list.map((p) => (p.id === editingProduct.id ? savedProduct : p));
+        } else {
+          list = [savedProduct, ...list.filter((p) => p.id !== savedProduct.id)];
+        }
+        localStorage.setItem('charade_products_cache', JSON.stringify(list));
+      } catch (errCache) {
+        console.warn('Impossible d\'écrire dans le cache local :', errCache);
       }
 
       setIsAddProductOpen(false);
       setEditingProduct(null);
       setProductForm({ name: '', description: '', material: '', color: '', price: '85 €', imageUrl: '' });
-      fetchAdminData();
+      await fetchAdminData();
       onRefreshProducts();
     } catch (err: any) {
       alert(err.message || 'Erreur lors de la sauvegarde.');
+    } finally {
+      setIsSavingProduct(false);
     }
   };
 
@@ -193,6 +215,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
+        try {
+          const cached = localStorage.getItem('charade_products_cache');
+          if (cached) {
+            const list: Product[] = JSON.parse(cached);
+            const filtered = list.filter((p) => p.id !== id);
+            localStorage.setItem('charade_products_cache', JSON.stringify(filtered));
+          }
+        } catch {}
         fetchAdminData();
         onRefreshProducts();
       }
@@ -249,58 +279,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // CAMERA & UPLOAD HANDLERS
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert('La photo choisie est trop volumineuse (max 8 Mo).');
-      return;
+    setIsCompressingImage(true);
+    try {
+      const optimizedUrl = await compressImage(file, 1200, 1200, 0.82);
+      setProductForm((prev) => ({ ...prev, imageUrl: optimizedUrl }));
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de l\'optimisation de l\'image.');
+    } finally {
+      setIsCompressingImage(false);
+      if (e.target) e.target.value = '';
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setProductForm((prev) => ({ ...prev, imageUrl: event.target!.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert('Le logo choisi est trop volumineux (max 8 Mo).');
-      return;
+    setIsCompressingImage(true);
+    try {
+      const optimizedUrl = await compressImage(file, 600, 600, 0.85);
+      setSettingsForm((prev) => ({ ...prev, logoUrl: optimizedUrl }));
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de l\'optimisation du logo.');
+    } finally {
+      setIsCompressingImage(false);
+      if (e.target) e.target.value = '';
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setSettingsForm((prev) => ({ ...prev, logoUrl: event.target!.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleHeroFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeroFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert('La photo choisie est trop volumineuse (max 8 Mo).');
-      return;
+    setIsCompressingImage(true);
+    try {
+      const optimizedUrl = await compressImage(file, 1600, 1200, 0.82);
+      setSettingsForm((prev) => ({ ...prev, heroImageUrl: optimizedUrl }));
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de l\'optimisation de la photo.');
+    } finally {
+      setIsCompressingImage(false);
+      if (e.target) e.target.value = '';
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setSettingsForm((prev) => ({ ...prev, heroImageUrl: event.target!.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const startCamera = async (target: 'product' | 'logo' | 'hero' = 'product') => {
@@ -339,12 +363,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 800;
-    canvas.height = video.videoHeight || 600;
+    let width = video.videoWidth || 800;
+    let height = video.videoHeight || 600;
+    const maxDim = 1200;
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       if (cameraTarget === 'product') {
         setProductForm((prev) => ({ ...prev, imageUrl: dataUrl }));
       } else if (cameraTarget === 'logo') {
@@ -377,6 +415,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const err = await res.json();
         throw new Error(err.error || 'Erreur lors de la sauvegarde des paramètres.');
       }
+
+      const updatedSettings = await res.json();
+
+      try {
+        localStorage.setItem('charade_settings_cache', JSON.stringify(updatedSettings));
+      } catch {}
 
       setSettingsSuccess(true);
       if (onRefreshSettings) {
@@ -1449,18 +1493,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               )}
 
+              {isCompressingImage && (
+                <div className="p-3 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 text-xs flex items-center space-x-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                  <span>Optimisation et préparation de la photo en cours...</span>
+                </div>
+              )}
+
               <div className="pt-4 flex items-center space-x-3">
                 <button
                   type="submit"
-                  disabled={!productForm.imageUrl}
-                  className="flex-1 py-3 bg-[#8C6D58] text-white font-semibold text-xs rounded-xl shadow-md hover:bg-[#735744] disabled:opacity-50"
+                  disabled={!productForm.imageUrl || isSavingProduct || isCompressingImage}
+                  className="flex-1 py-3 bg-[#8C6D58] text-white font-semibold text-xs rounded-xl shadow-md hover:bg-[#735744] disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
-                  {editingProduct ? 'Enregistrer les modifications' : 'Ajouter au catalogue'}
+                  {isSavingProduct ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Enregistrement sécurisé...</span>
+                    </>
+                  ) : (
+                    <span>{editingProduct ? 'Enregistrer les modifications' : 'Ajouter au catalogue'}</span>
+                  )}
                 </button>
                 <button
                   type="button"
+                  disabled={isSavingProduct}
                   onClick={() => setIsAddProductOpen(false)}
-                  className="px-4 py-3 bg-[#FAF8F5] text-[#5C4F4A] font-semibold text-xs rounded-xl hover:bg-[#EFE8DF]"
+                  className="px-4 py-3 bg-[#FAF8F5] text-[#5C4F4A] font-semibold text-xs rounded-xl hover:bg-[#EFE8DF] disabled:opacity-50"
                 >
                   Annuler
                 </button>
